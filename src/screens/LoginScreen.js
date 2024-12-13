@@ -10,20 +10,18 @@ const LoginScreen = ({ navigation }) => {
   const handleLogin = async () => {
     if (username && password) {
       try {
-        // Send login request to your backend API
+    
         const response = await axios.post('https://samplesytems.shop/backend/user.php', {
           username,
           password,
         });
 
-        console.log(response.data); // Check response structure
+        console.log(response.data);
 
         if (response.data.success) {
-          // Save user data or token in AsyncStorage for session management
-          await AsyncStorage.setItem('userToken', 'dummy-token'); // replace with actual token
-          await AsyncStorage.setItem('userId', 'dummy-user-id'); // replace with actual user ID
 
-          // Navigate to ProfileScreen after successful login
+          await AsyncStorage.setItem('userToken', 'dummy-token'); 
+          await AsyncStorage.setItem('userId', 'dummy-user-id'); 
           navigation.replace('ProfileScreen');
         } else {
           Alert.alert('Login Failed', 'Incorrect username or password');

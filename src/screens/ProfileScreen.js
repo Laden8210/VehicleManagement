@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Button, Alert, BackHandler } from 'react-native';
+import { View, Button, Alert, BackHandler } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -8,16 +8,12 @@ const ProfileScreen = () => {
 
   const handleLogout = async () => {
     try {
-      // Remove user session data from AsyncStorage
+
       await AsyncStorage.removeItem('userToken');
       await AsyncStorage.removeItem('userId');
 
-      // Close the app
-      BackHandler.exitApp();
 
-      // Optionally, you can navigate to the Login screen before closing the app
-      // This line is optional because `exitApp()` will close the app immediately
-      // navigation.replace('LoginScreen');
+      BackHandler.exitApp();
 
     } catch (error) {
       console.error('Error during logout:', error);
@@ -27,7 +23,6 @@ const ProfileScreen = () => {
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    
       <Button title="Logout" onPress={handleLogout} />
     </View>
   );

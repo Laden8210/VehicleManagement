@@ -1,72 +1,172 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Modal, FlatList, TouchableOpacity, ScrollView, Image } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Modal,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Alert,
+} from "react-native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { Picker } from "@react-native-picker/picker";
+import Icon from "react-native-vector-icons/FontAwesome";
+import { BASE_URL } from "../config";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 
 export default function TripTicketForm() {
-  const [addModalVisible, setAddModalVisible] = useState(false);  // For Add Trip Ticket modal
-  const [viewModalVisible, setViewModalVisible] = useState(false); // For View Trip Details modal
-  const [selectedTrip, setSelectedTrip] = useState(null);  // Track selected trip for view modal
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [selectedTrip, setSelectedTrip] = useState(null);
   const [tripData, setTripData] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // Form fields for adding a new trip
-  const [tripTicketNumber, setTripTicketNumber] = useState('');
-  const [arrivalDate, setArrivalDate] = useState('');
-  const [returnDate, setReturnDate] = useState('');
-  const [vehicleName, setVehicleName] = useState('');
-  const [driverId, setDriverId] = useState('');
-  const [responderNames, setResponderNames] = useState('');
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [purpose, setPurpose] = useState('');
-  const [kmBeforeTravel, setKmBeforeTravel] = useState('');
-  const [balanceStart, setBalanceStart] = useState('');
-  const [issuedFromOffice, setIssuedFromOffice] = useState('');
-  const [departureTimeFromOffice, setDepartureTimeFromOffice] = useState('');
-  const [kmAfterTravel, setKmAfterTravel] = useState('');
-  const [distanceTravelled, setDistanceTravelled] = useState('');
-  const [arrivalAtDestination, setArrivalAtDestination] = useState('');
-  const [departureFromDestination, setDepartureFromDestination] = useState('');
-  const [arrivalAtOffice, setArrivalAtOffice] = useState('');
-  const [addedDuringTrip, setAddedDuringTrip] = useState('');
-  const [totalFuelTank, setTotalFuelTank] = useState('');
-  const [fuelConsumed, setFuelConsumed] = useState('');
-  const [balanceEnd, setBalanceEnd] = useState('');
-  const [others, setOthers] = useState('');
-  const [remarks, setRemarks] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const handleSubmit = () => {
-    const newRow = {
-      id: Date.now().toString(),
-      tripTicketNumber,
-      arrivalDate,
-      returnDate,
-      vehicleName,
-      driverId,
-      responderNames,
-      origin,
-      destination,
-      purpose,
-      kmBeforeTravel,
-      balanceStart,
-      issuedFromOffice,
-      departureTimeFromOffice,
-      kmAfterTravel,
-      distanceTravelled,
-      arrivalAtDestination,
-      departureFromDestination,
-      arrivalAtOffice,
-      addedDuringTrip,
-      totalFuelTank,
-      fuelConsumed,
-      balanceEnd,
-      others,
-      remarks,
-    };
-    setTripData([...tripData, newRow]);
-    setAddModalVisible(false); // Close Add modal after adding data
-    resetForm(); // Reset the form after submission
+
+  const [tripTicketNumber, setTripTicketNumber] = useState("");
+  const [arrivalDate, setArrivalDate] = useState("");
+  const [returnDate, setReturnDate] = useState("");
+  const [vehicleName, setVehicleName] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const [responderNames, setResponderNames] = useState("");
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [kmBeforeTravel, setKmBeforeTravel] = useState("");
+  const [balanceStart, setBalanceStart] = useState("");
+  const [issuedFromOffice, setIssuedFromOffice] = useState("");
+  const [departureTimeFromOffice, setDepartureTimeFromOffice] = useState("");
+  const [kmAfterTravel, setKmAfterTravel] = useState("");
+  const [distanceTravelled, setDistanceTravelled] = useState("");
+  const [arrivalAtDestination, setArrivalAtDestination] = useState("");
+  const [departureFromDestination, setDepartureFromDestination] = useState("");
+  const [arrivalAtOffice, setArrivalAtOffice] = useState("");
+  const [addedDuringTrip, setAddedDuringTrip] = useState("");
+  const [totalFuelTank, setTotalFuelTank] = useState("");
+  const [fuelConsumed, setFuelConsumed] = useState("");
+  const [balanceEnd, setBalanceEnd] = useState("");
+  const [others, setOthers] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [selectedVehicle, setSelectedVehicle] = useState("");
+
+  const [dateType, setDateType] = useState(null);
+
+  const [arrivalTimeA, setArrivalTimeA] = useState("");
+  const [arrivalTimeB, setArrivalTimeB] = useState("");
+  const [departureTimeA, setDepartureTimeA] = useState("");
+  const [departureTimeB, setDepartureTimeB] = useState("");
+
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+
+
+
+
+  const fetchTripData = async () => {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await axios.get(`${BASE_URL}get-trip-ticket`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+
+
+    setTripData(response.data);
   };
+
+
+  const handleSubmit = async () => {
+    try {
+      const parsedKmBeforeTravel = parseInt(kmBeforeTravel, 10);
+      const parsedBalanceStart = parseFloat(balanceStart); // You may want to use float if this field includes decimals
+      const parsedIssuedFromOffice = parseFloat(issuedFromOffice);
+      const parsedKmAfterTravel = parseInt(kmAfterTravel, 10);
+      const parsedTotalFuelTank = parseFloat(totalFuelTank);
+      const parsedFuelConsumption = parseFloat(fuelConsumed);
+      const parsedBalanceEnd = parseFloat(balanceEnd);
+      const parsedAddedDuringTrip = parseFloat(addedDuringTrip); // optional if needed
+
+      
+
+      const response = await fetch(`${BASE_URL}add-trip-ticket`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${await AsyncStorage.getItem("userToken")}`,
+        },
+        body: JSON.stringify({
+          ArrivalDate: arrivalDate,
+          ReturnDate: returnDate,
+          vehicles_id: selectedVehicle,
+          Origin: origin,
+          Destination: destination,
+          Purpose: purpose,
+          KmBeforeTravel: parsedKmBeforeTravel,
+          BalanceStart: parsedBalanceStart,
+          IssuedFromOffice: issuedFromOffice,
+          TimeDeparture_A: departureTimeA,
+          KmAfterTravel: parsedKmAfterTravel,
+          TimeArrival_A: arrivalTimeA,
+          TimeDeparture_B: departureTimeB,
+          TimeArrival_B: arrivalTimeB,
+
+          AddedDuringTrip: parsedAddedDuringTrip,
+          TotalFuelTank: parsedTotalFuelTank,
+          FuelConsumption: parsedFuelConsumption,
+          BalanceEnd: parsedBalanceEnd,
+          Others: others,
+          Remarks: remarks,
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        Alert.alert("Trip Ticket Added Successfully");
+
+        setAddModalVisible(false); 
+        resetForm();
+        console.log(result);
+      } else {
+        // Handle error response
+        console.error(result);
+      }
+    } catch (error) {
+      console.error("Error during submit:", error);
+    }
+
+  };
+
+
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      try {
+        const token = await AsyncStorage.getItem("userToken");
+        if (token) {
+          const response = await axios.get(`${BASE_URL}vehicles`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          });
+          setVehicles(response.data);
+        } else {
+          console.error("No token found in AsyncStorage.");
+        }
+      } catch (error) {
+
+        console.error("Error fetching vehicles:", error);
+      }
+    };
+    fetchTripData();
+    fetchVehicles();
+  }, []);
 
   const handleSearch = (query) => {
     setSearchQuery(query);
@@ -74,17 +174,16 @@ export default function TripTicketForm() {
 
   const filteredData = tripData.filter((item) => {
     return (
-      item.tripTicketNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.vehicleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.driverId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.origin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.destination.toLowerCase().includes(searchQuery.toLowerCase())
+      item.TripTicketNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.VehicleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.Origin.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.Destination.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
   const handleCardClick = (item) => {
     setSelectedTrip(item);
-    setViewModalVisible(true);  // Open view modal with full details when a card is clicked
+    setViewModalVisible(true); // Open view modal with full details when a card is clicked
   };
 
   const closeAddModal = () => {
@@ -95,32 +194,63 @@ export default function TripTicketForm() {
   const closeViewModal = () => {
     setViewModalVisible(false);
   };
+  const handleConfirm = (date) => {
+    const formattedDate = date.toLocaleDateString();
+    const formattedTime = date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    if (dateType === "arrivalDate") {
+      setArrivalDate(formattedDate);
+    } else if (dateType === "returnDate") {
+      setReturnDate(formattedDate);
+    } else if (dateType === "arrivalAtDestination") {
+      setArrivalAtDestination(formattedDate);
+    } else if (dateType === "departureTimeFromOffice") {
+      setDepartureTimeFromOffice(formattedDate);
+    } else if (dateType === "TimeArrival_A") {
+      setArrivalTimeA(formattedTime);
+    } else if (dateType === "TimeArrival_B") {
+      setArrivalTimeB(formattedTime);
+    } else if (dateType === "TimeDeparture_A") {
+      setDepartureTimeA(formattedTime);
+    } else if (dateType === "TimeDeparture_B") {
+      setDepartureTimeB(formattedTime);
+    }
+
+    setDatePickerVisibility(false);
+  };
+
+  const showDatePicker = (field) => {
+    setDateType(field);
+    setDatePickerVisibility(true);
+  };
 
   const resetForm = () => {
-    setTripTicketNumber('');
-    setArrivalDate('');
-    setReturnDate('');
-    setVehicleName('');
-    setDriverId('');
-    setResponderNames('');
-    setOrigin('');
-    setDestination('');
-    setPurpose('');
-    setKmBeforeTravel('');
-    setBalanceStart('');
-    setIssuedFromOffice('');
-    setDepartureTimeFromOffice('');
-    setKmAfterTravel('');
-    setDistanceTravelled('');
-    setArrivalAtDestination('');
-    setDepartureFromDestination('');
-    setArrivalAtOffice('');
-    setAddedDuringTrip('');
-    setTotalFuelTank('');
-    setFuelConsumed('');
-    setBalanceEnd('');
-    setOthers('');
-    setRemarks('');
+    setTripTicketNumber("");
+    setArrivalDate("");
+    setReturnDate("");
+    setVehicleName("");
+    setDriverId("");
+    setResponderNames("");
+    setOrigin("");
+    setDestination("");
+    setPurpose("");
+    setKmBeforeTravel("");
+    setBalanceStart("");
+    setIssuedFromOffice("");
+    setDepartureTimeFromOffice("");
+    setKmAfterTravel("");
+    setDistanceTravelled("");
+    setArrivalAtDestination("");
+    setDepartureFromDestination("");
+    setArrivalAtOffice("");
+    setAddedDuringTrip("");
+    setTotalFuelTank("");
+    setFuelConsumed("");
+    setBalanceEnd("");
+    setOthers("");
+    setRemarks("");
   };
 
   return (
@@ -129,28 +259,35 @@ export default function TripTicketForm() {
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder=""
+          placeholder="Search"
           value={searchQuery}
           onChangeText={handleSearch}
         />
-        <TouchableOpacity onPress={() => setAddModalVisible(true)} style={styles.addButton}>
+        <TouchableOpacity
+          onPress={() => setAddModalVisible(true)}
+          style={styles.addButton}
+        >
           <Icon name="plus" size={20} color="#fff" />
-          <Text style={styles.addButtonText}></Text>
+          <Text style={styles.addButtonText}>Add Trip</Text>
         </TouchableOpacity>
       </View>
 
       {/* Table displaying data */}
       <FlatList
         data={filteredData}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => handleCardClick(item)}>
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Trip Ticket Number: {item.tripTicketNumber}</Text>
-              <Text style={styles.cardText}>Vehicle: {item.vehicleName}</Text>
-              <Text style={styles.cardText}>Driver ID: {item.driverId}</Text>
-              <Text style={styles.cardText}>Origin: {item.origin}</Text>
-              <Text style={styles.cardText}>Destination: {item.destination}</Text>
+              <Text style={styles.cardTitle}>
+                Trip Ticket Number: {item.TripTicketNumber}
+              </Text>
+              <Text style={styles.cardText}>Vehicle: {item.VehicleName}</Text>
+              <Text style={styles.cardText}>Driver ID: {item.user_id}</Text>
+              <Text style={styles.cardText}>Origin: {item.Origin}</Text>
+              <Text style={styles.cardText}>
+                Destination: {item.Destination}
+              </Text>
             </View>
           </TouchableOpacity>
         )}
@@ -162,78 +299,273 @@ export default function TripTicketForm() {
           <Text style={styles.header}>Trip Ticket Details</Text>
           {selectedTrip && (
             <>
-              <Text style={styles.detailText}>Trip Ticket Number: {selectedTrip.tripTicketNumber}</Text>
-              <Text style={styles.detailText}>Arrival Date: {selectedTrip.arrivalDate}</Text>
-              <Text style={styles.detailText}>Return Date: {selectedTrip.returnDate}</Text>
-              <Text style={styles.detailText}>Vehicle Name: {selectedTrip.vehicleName}</Text>
-              <Text style={styles.detailText}>Driver ID: {selectedTrip.driverId}</Text>
-              <Text style={styles.detailText}>Responder Names: {selectedTrip.responderNames}</Text>
-              <Text style={styles.detailText}>Origin: {selectedTrip.origin}</Text>
-              <Text style={styles.detailText}>Destination: {selectedTrip.destination}</Text>
-              <Text style={styles.detailText}>Purpose: {selectedTrip.purpose}</Text>
-              <Text style={styles.detailText}>Km Before Travel: {selectedTrip.kmBeforeTravel}</Text>
-              <Text style={styles.detailText}>Balance Start: {selectedTrip.balanceStart}</Text>
-              <Text style={styles.detailText}>Issued From Office: {selectedTrip.issuedFromOffice}</Text>
-              <Text style={styles.detailText}>Departure Time from Office: {selectedTrip.departureTimeFromOffice}</Text>
-              <Text style={styles.detailText}>Km After Travel: {selectedTrip.kmAfterTravel}</Text>
-              <Text style={styles.detailText}>Distance Travelled: {selectedTrip.distanceTravelled}</Text>
-              <Text style={styles.detailText}>Arrival at Destination: {selectedTrip.arrivalAtDestination}</Text>
-              <Text style={styles.detailText}>Departure from Destination: {selectedTrip.departureFromDestination}</Text>
-              <Text style={styles.detailText}>Arrival at Office: {selectedTrip.arrivalAtOffice}</Text>
-              <Text style={styles.detailText}>Added During Trip: {selectedTrip.addedDuringTrip}</Text>
-              <Text style={styles.detailText}>Total Fuel Tank: {selectedTrip.totalFuelTank}</Text>
-              <Text style={styles.detailText}>Fuel Consumed: {selectedTrip.fuelConsumed}</Text>
-              <Text style={styles.detailText}>Balance End: {selectedTrip.balanceEnd}</Text>
-              <Text style={styles.detailText}>Others: {selectedTrip.others}</Text>
-              <Text style={styles.detailText}>Remarks: {selectedTrip.remarks}</Text>
+              <Text style={styles.detailText}>
+                Trip Ticket Number: {selectedTrip.tripTicketNumber}
+              </Text>
+              <Text style={styles.detailText}>
+                Arrival Date: {selectedTrip.arrivalDate}
+              </Text>
+              <Text style={styles.detailText}>
+                Return Date: {selectedTrip.returnDate}
+              </Text>
+              <Text style={styles.detailText}>
+                Vehicle Name: {selectedTrip.vehicleName}
+              </Text>
+              <Text style={styles.detailText}>
+                Driver ID: {selectedTrip.driverId}
+              </Text>
+              <Text style={styles.detailText}>
+                Responder Names: {selectedTrip.responderNames}
+              </Text>
+              <Text style={styles.detailText}>
+                Origin: {selectedTrip.origin}
+              </Text>
+              <Text style={styles.detailText}>
+                Destination: {selectedTrip.destination}
+              </Text>
+              <Text style={styles.detailText}>
+                Purpose: {selectedTrip.purpose}
+              </Text>
+              <Text style={styles.detailText}>
+                Km Before Travel: {selectedTrip.kmBeforeTravel}
+              </Text>
+              <Text style={styles.detailText}>
+                Balance Start: {selectedTrip.balanceStart}
+              </Text>
+              <Text style={styles.detailText}>
+                Remarks: {selectedTrip.remarks}
+              </Text>
+              <TouchableOpacity onPress={closeViewModal}>
+                <Text style={styles.closeButton}>Close</Text>
+              </TouchableOpacity>
             </>
           )}
-          <TouchableOpacity onPress={closeViewModal} style={styles.closeButton}>
-            <Icon name="times" size={20} color="#fff" />
-            <Text style={styles.closeButtonText}>Close</Text>
-          </TouchableOpacity>
         </ScrollView>
       </Modal>
 
-      {/* Modal Form for adding a new trip ticket */}
+      {/* Modal to add new trip ticket */}
       <Modal visible={addModalVisible} animationType="slide">
         <ScrollView contentContainerStyle={styles.modalContent}>
-          <Text style={styles.header}></Text>
+          <Text style={styles.header}>Add Trip Ticket</Text>
 
-          {/* Add all the inputs for each new field */}
-          <TextInput style={styles.input} placeholder="Trip Ticket Number" value={tripTicketNumber} onChangeText={setTripTicketNumber} />
-          <TextInput style={styles.input} placeholder="Arrival Date" value={arrivalDate} onChangeText={setArrivalDate} />
-          <TextInput style={styles.input} placeholder="Return Date" value={returnDate} onChangeText={setReturnDate} />
-          <TextInput style={styles.input} placeholder="Vehicle Name" value={vehicleName} onChangeText={setVehicleName} />
-          <TextInput style={styles.input} placeholder="Driver ID" value={driverId} onChangeText={setDriverId} />
-          <TextInput style={styles.input} placeholder="Responder Names" value={responderNames} onChangeText={setResponderNames} />
-          <TextInput style={styles.input} placeholder="Origin" value={origin} onChangeText={setOrigin} />
-          <TextInput style={styles.input} placeholder="Destination" value={destination} onChangeText={setDestination} />
-          <TextInput style={styles.input} placeholder="Purpose" value={purpose} onChangeText={setPurpose} />
-          <TextInput style={styles.input} placeholder="Kilometer Before Travel" value={kmBeforeTravel} onChangeText={setKmBeforeTravel} keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Balance Start" value={balanceStart} onChangeText={setBalanceStart} keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Issued From Office" value={issuedFromOffice} onChangeText={setIssuedFromOffice} />
-          <TextInput style={styles.input} placeholder="Departure Time from Office" value={departureTimeFromOffice} onChangeText={setDepartureTimeFromOffice} />
-          <TextInput style={styles.input} placeholder="Kilometer After Travel" value={kmAfterTravel} onChangeText={setKmAfterTravel} keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Distance Travelled" value={distanceTravelled} onChangeText={setDistanceTravelled} keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Arrival at Destination" value={arrivalAtDestination} onChangeText={setArrivalAtDestination} />
-          <TextInput style={styles.input} placeholder="Departure from Destination" value={departureFromDestination} onChangeText={setDepartureFromDestination} />
-          <TextInput style={styles.input} placeholder="Arrival at Office" value={arrivalAtOffice} onChangeText={setArrivalAtOffice} />
-          <TextInput style={styles.input} placeholder="Added During Trip" value={addedDuringTrip} onChangeText={setAddedDuringTrip} />
-          <TextInput style={styles.input} placeholder="Total Fuel Tank" value={totalFuelTank} onChangeText={setTotalFuelTank} keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Fuel Consumed" value={fuelConsumed} onChangeText={setFuelConsumed} keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Balance End" value={balanceEnd} onChangeText={setBalanceEnd} keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Others" value={others} onChangeText={setOthers} />
-          <TextInput style={styles.input} placeholder="Remarks" value={remarks} onChangeText={setRemarks} />
+          <Text style={styles.label}>Trip Ticket Number</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Trip Ticket Number"
+            value={tripTicketNumber}
+            onChangeText={setTripTicketNumber}
+          />
 
-          {/* Submit and Cancel Buttons */}
-          <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
-            <Icon name="check" size={20} color="#fff" />
-            <Text style={styles.submitButtonText}>Submit</Text>
+          <Text style={styles.label}>Vehicle</Text>
+          <Picker
+            selectedValue={selectedVehicle}
+            onValueChange={(itemValue) => setSelectedVehicle(itemValue)}
+          >
+            <Picker.Item label="Select Vehicle" value="" />
+            {vehicles.map((vehicle) => (
+              <Picker.Item
+                key={vehicle.id}
+                label={vehicle.VehicleName}
+                value={vehicle.id}
+              />
+            ))}
+          </Picker>
+
+          {/* Arrival Date Picker */}
+
+          <TouchableOpacity onPress={() => showDatePicker("arrivalDate")}>
+            <Text style={styles.input}>{arrivalDate || "Arrival Date"}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={closeAddModal} style={styles.cancelButton}>
-            <Icon name="times" size={20} color="#fff" />
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+
+          {/* Return Date Picker */}
+          <Text style={styles.label}>Return Date</Text>
+          <TouchableOpacity onPress={() => showDatePicker("returnDate")}>
+            <Text style={styles.input}>{returnDate || "Return Date"}</Text>
+          </TouchableOpacity>
+
+          {/* Arrival At Destination Picker */}
+          <Text style={styles.label}>Arrival At Destination</Text>
+          <TouchableOpacity
+            onPress={() => showDatePicker("arrivalAtDestination")}
+          >
+            <Text style={styles.input}>
+              {arrivalAtDestination || "Arrival At Destination"}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Departure Time From Office Picker */}
+          <Text style={styles.label}>Departure Time From Office</Text>
+          <TouchableOpacity
+            onPress={() => showDatePicker("departureTimeFromOffice")}
+          >
+            <Text style={styles.input}>
+              {departureTimeFromOffice || "Departure Time From Office"}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Other fields as normal TextInput */}
+          <Text style={styles.label}>Responder Names</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Responder Names"
+            value={responderNames}
+            onChangeText={setResponderNames}
+          />
+          <Text style={styles.label}>Origin</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Origin"
+            value={origin}
+            onChangeText={setOrigin}
+          />
+          <Text style={styles.label}>Destination</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Destination"
+            value={destination}
+            onChangeText={setDestination}
+          />
+          <Text style={styles.label}>Purpose</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Purpose"
+            value={purpose}
+            onChangeText={setPurpose}
+          />
+          <Text style={styles.label}>Km Before Travel</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Km Before Travel"
+            value={kmBeforeTravel}
+            onChangeText={setKmBeforeTravel}
+          />
+          <Text style={styles.label}>Balance Start</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Balance Start"
+            value={balanceStart}
+            onChangeText={setBalanceStart}
+          />
+          <Text style={styles.label}>Issued From Office</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Issued From Office"
+            value={issuedFromOffice}
+            onChangeText={setIssuedFromOffice}
+          />
+          <Text style={styles.label}>Km After Travel</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Km After Travel"
+            value={kmAfterTravel}
+            onChangeText={setKmAfterTravel}
+          />
+          <Text style={styles.label}>Distance Travelled</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Distance Travelled"
+            value={distanceTravelled}
+            onChangeText={setDistanceTravelled}
+          />
+
+          {/* Show DatePicker Modal */}
+          <Text style={styles.label}>Departure From Destination</Text>
+          <DateTimePickerModal
+            isVisible={isDatePickerVisible}
+            mode="datetime"
+            onConfirm={handleConfirm}
+            onCancel={() => setDatePickerVisibility(false)}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Departure From Destination"
+            value={departureFromDestination}
+            onChangeText={setDepartureFromDestination}
+          />
+
+          <Text style={styles.label}>Arrival At Office</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Arrival At Office"
+            value={arrivalAtOffice}
+            onChangeText={setArrivalAtOffice}
+          />
+
+          <Text style={styles.label}>Added During Trip</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Added During Trip"
+            value={addedDuringTrip}
+            onChangeText={setAddedDuringTrip}
+          />
+
+          <Text style={styles.label}>Total Fuel Tank</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Total Fuel Tank"
+            value={totalFuelTank}
+            onChangeText={setTotalFuelTank}
+          />
+
+          <Text style={styles.label}>Fuel Consumed</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Fuel Consumed"
+            value={fuelConsumed}
+            onChangeText={setFuelConsumed}
+          />
+
+          <Text style={styles.label}>Balance End</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Balance End"
+            value={balanceEnd}
+            onChangeText={setBalanceEnd}
+          />
+
+          <TouchableOpacity onPress={() => showDatePicker("TimeArrival_A")}
+             style={styles.input}>
+            <Text>{arrivalTimeA || "Select Arrival Time A"}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => showDatePicker("TimeArrival_B")}
+             style={styles.input}>
+            <Text>{arrivalTimeB || "Select Arrival Time B"}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => showDatePicker("TimeDeparture_A")}
+             style={styles.input}>
+            <Text>{departureTimeA || "Select Departure Time A"}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => showDatePicker("TimeDeparture_B")}
+             style={styles.input}>
+            <Text>{departureTimeB || "Select Departure Time B"}</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.label}>Others</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Others"
+            value={others}
+            onChangeText={setOthers}
+          />
+
+          <Text style={styles.label}>Remarks</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Remarks"
+            value={remarks}
+            onChangeText={setRemarks}
+          />
+
+          <TouchableOpacity onPress={handleSubmit}>
+            <Text style={styles.submitButton}>Submit</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={closeAddModal}>
+            <Text style={styles.closeButton}>Close</Text>
           </TouchableOpacity>
         </ScrollView>
       </Modal>
@@ -244,120 +576,124 @@ export default function TripTicketForm() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 15,
-    backgroundColor: '#e9ecef', // Light gray background for the whole app
+    padding: 20,
   },
   searchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    alignItems: 'center',
+    flexDirection: "row",
+    marginBottom: 10,
+  },
+
+  label: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 5,
   },
   searchInput: {
+    flex: 1,
     height: 40,
-    width: '85%',
-    borderColor: '#ced4da',
+    borderColor: "#ccc",
     borderWidth: 1,
     paddingLeft: 10,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    fontSize: 12,
+    marginRight: 10,
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#28a745', // Green button
-    padding: 15,
-    borderRadius: 20,
+    backgroundColor: "#4CAF50",
+    padding: 10,
+    borderRadius: 5,
+    justifyContent: "center",
+    alignItems: "center",
   },
   addButtonText: {
-    color: '#fff',
-    marginLeft: 0,
+    color: "#fff",
     fontSize: 16,
   },
   card: {
-    backgroundColor: '#ADD8E6',
-    padding: 20,
-    marginBottom: 15,
-    borderRadius: 10,
-    borderColor: '#dee2e6',
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: 15,
+    marginVertical: 10,
+    borderRadius: 5,
+    backgroundColor: "#f9f9f9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#495057',
+    fontSize: 16,
+    fontWeight: "bold",
   },
   cardText: {
     fontSize: 14,
-    color: '#6c757d',
-  },
-  header: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#495057',
+    color: "#555",
   },
   modalContent: {
-    backgroundColor: '#ffffff',
-    padding: 25,
-    borderRadius: 10,
+    padding: 20,
+  },
+  header: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  detailText: {
+    fontSize: 16,
+    marginBottom: 8,
   },
   input: {
-    height: 45,
-    borderColor: '#ced4da',
+    height: 40,
+    borderColor: "#ccc",
     borderWidth: 1,
-    marginVertical: 8,
-    paddingLeft: 12,
-    borderRadius: 6,
-    backgroundColor: '#f8f9fa',
+    borderRadius: 5,
+    fontSize: 14,
+    paddingLeft: 10,
+    paddingRight: 10,
+    textAlignVertical: "center",
+    marginBottom: 10,
+  },
+
+  picker: {
+    height: 40,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 5,
+    fontSize: 14,
+    marginBottom: 10,
+    paddingLeft: 10,
+    paddingRight: 10,
   },
   submitButton: {
-    flexDirection: 'row',
-    backgroundColor: '#28a745',
-    alignItems: 'center',
+    flexDirection: "row",
+    backgroundColor: "#28a745",
+    alignItems: "center",
     padding: 12,
     borderRadius: 8,
     marginVertical: 12,
   },
   submitButtonText: {
-    color: '#fff',
+    color: "#fff",
     marginLeft: 8,
     fontSize: 16,
   },
   cancelButton: {
-    flexDirection: 'row',
-    backgroundColor: '#dc3545',
-    alignItems: 'center',
+    flexDirection: "row",
+    backgroundColor: "#dc3545",
+    alignItems: "center",
     padding: 12,
     borderRadius: 8,
   },
   cancelButtonText: {
-    color: '#fff',
+    color: "#fff",
     marginLeft: 8,
     fontSize: 16,
   },
   closeButton: {
-    flexDirection: 'row',
-    backgroundColor: '#dc3545',
-    alignItems: 'center',
+    flexDirection: "row",
+    backgroundColor: "#dc3545",
+    alignItems: "center",
     padding: 12,
     borderRadius: 8,
   },
   closeButtonText: {
-    color: '#fff',
+    color: "#fff",
     marginLeft: 8,
     fontSize: 16,
-  },
-  detailText: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: '#495057',
   },
 });

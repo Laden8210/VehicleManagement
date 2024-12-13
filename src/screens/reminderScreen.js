@@ -7,8 +7,9 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import axios from 'axios';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BASE_URL } from '../config';
 
 const RemindersScreen = () => {
   const [reminders, setReminders] = useState([]);
@@ -16,25 +17,27 @@ const RemindersScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [category, setCategory] = useState('');
 
-  // Fetch reminders from backend
   const fetchReminders = async () => {
     setError(null);
-
+    const token = await AsyncStorage.getItem('userToken');
     try {
-      const response = await axios.get(
-        'https://samplesytems.shop/backend/reminder.php',
-        {
-          params: { searchQuery, category }, // Adjust as needed in the PHP backend
-        }
-      );
+      const response = await fetch(`${BASE_URL}reminder`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
+      });
 
-      if (Array.isArray(response.data)) {
-        setReminders(response.data);
+      if (response.ok) {
+        const data = await response.json();
+        setReminders(data);
       } else {
-        setError('Failed to load reminders: Invalid data format');
+        setError('Failed to load reminders: ' + response.statusText);
       }
     } catch (err) {
-      setError('Failed to fetch reminders');
+      setError('Failed to fetch reminders: ' + err.message);
     }
   };
 
@@ -42,17 +45,16 @@ const RemindersScreen = () => {
     fetchReminders();
   }, [category]);
 
-  // Function to format the date as "December 6, 19916"
   const formatDate = (date) => {
+    if (!date) return 'N/A';
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(date).toLocaleDateString('en-US', options);
   };
 
-  // Function to format the title as a date
-  const formatTitle = (title) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(title).toLocaleDateString('en-US', options);
-  };
+  const filteredReminders = reminders.filter((reminder) =>
+    (reminder.Remarks?.toLowerCase() || '').includes(searchQuery?.toLowerCase() || '')
+  );
+  
 
   return (
     <View style={styles.container}>
@@ -60,7 +62,7 @@ const RemindersScreen = () => {
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search reminders"
+          placeholder="Search reminders by remarks"
           value={searchQuery}
           onChangeText={(text) => setSearchQuery(text)}
         />
@@ -74,17 +76,19 @@ const RemindersScreen = () => {
 
       {/* Display Reminders */}
       <ScrollView style={styles.scrollView}>
-        {reminders.length === 0 ? (
+        {filteredReminders.length === 0 ? (
           <Text style={styles.noDataText}>No reminders found</Text>
         ) : (
-          reminders.map((reminder) => (
+          filteredReminders.map((reminder) => (
             <View key={reminder.id} style={styles.card}>
-              {/* Formatting the title (date) */}
-              <Text style={styles.title}>{formatTitle(reminder.title)}</Text>
-              {/* Formatting the date */}
-              <Text style={styles.date}>Due Date: {formatDate(reminder.date)}</Text>
-              <Text>Status: {reminder.status}</Text>
-              <Text>Remarks: {reminder.remarks}</Text>
+              <Text style={styles.date}>
+                Reminder Date: {formatDate(reminder.ReminderDate)}
+              </Text>
+              <Text style={styles.date}>
+                Due Date: {formatDate(reminder.DueDate)}
+              </Text>
+              <Text>Status: {reminder.ReminderStatus}</Text>
+              <Text>Remarks: {reminder.Remarks}</Text>
             </View>
           ))
         )}
@@ -124,11 +128,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
     elevation: 3,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
   },
   date: {
     fontSize: 16,

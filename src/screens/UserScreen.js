@@ -5,7 +5,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import { Calendar } from 'react-native-calendars';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import { BASE_URL } from "../config";
 const UserScreen = ({ userId, userName, setUserType }) => { 
   const [repairRequests, setRepairRequests] = useState(0);
   const [maintenanceRecommendations, setMaintenanceRecommendations] = useState(0);
@@ -14,26 +14,38 @@ const UserScreen = ({ userId, userName, setUserType }) => {
 
   const navigation = useNavigation();
 
+
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await axios.get(`https://samplesytems.shop/backend/dashboard.php?userId=${userId}`);
-        if (response.data) {
-          const { repairRequests, maintenanceRecommendations, reminders, dispatch } = response.data;
-          setRepairRequests(repairRequests);
-          setMaintenanceRecommendations(maintenanceRecommendations);
-          setReminders(reminders);
-          setDispatch(dispatch);
+        const token = await AsyncStorage.getItem("userToken");
+        console.log("Token:", token);
+        const response = await fetch(`${BASE_URL}dashboard`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: token ? `Bearer ${token}` : undefined, 
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setRepairRequests(data.repairRequestCount);
+          setMaintenanceRecommendations(data.mainCount);
+          setReminders(data.reminderCount);
+          setDispatch(data.dispatchCount);
+        } else {
+          console.error('Failed to fetch user data');
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
       }
     };
 
-    if (userId) {
-      fetchUserData(); 
-    }
-  }, [userId]);
+    fetchUserData();
+  }, []);
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -51,21 +63,20 @@ const UserScreen = ({ userId, userName, setUserType }) => {
             try {
               console.log("Attempting to sign out...");
 
-              // Remove user token and ID from AsyncStorage
+
               await AsyncStorage.removeItem('userToken');
               await AsyncStorage.removeItem('userId');
 
-              // Confirm removal
+
               console.log("User data cleared from AsyncStorage.");
 
-              // Reset userType to null (not logged in)
-              setUserType(null);  // This should trigger a re-render in the parent component
+    
+              setUserType(null);  
 
-              // Check if setUserType was successful
               console.log("UserType after reset:", userType);
 
               // Close the app
-              BackHandler.exitApp(); // This will close the app on Android
+              BackHandler.exitApp();
             } catch (error) {
               console.error('Error during sign-out:', error);
               Alert.alert("Error", "An error occurred while signing out. Please try again.");

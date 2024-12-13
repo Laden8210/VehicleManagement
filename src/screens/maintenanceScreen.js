@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,28 +11,57 @@ import {
   FlatList,
   Alert,
   TouchableWithoutFeedback,
-} from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { Ionicons } from '@expo/vector-icons'; // Using Ionicons for icons
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
+import { BASE_URL } from "../config";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 export default function MaintenanceRecommendationForm() {
   const [modalVisible, setModalVisible] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
-  const [vehicleName, setVehicleName] = useState('');
-  const [driverID, setDriverID] = useState('');
-  const [recommendationType, setRecommendationType] = useState('');
-  const [issues, setIssues] = useState('');
-  const [issueDescription, setIssueDescription] = useState('');
-  const [recommendationDate, setRecommendationDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [priorityLevel, setPriorityLevel] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [vehicleName, setVehicleName] = useState("");
+  const [driverID, setDriverID] = useState("");
+  const [recommendationType, setRecommendationType] = useState("");
+  const [issues, setIssues] = useState("");
+  const [issueDescription, setIssueDescription] = useState("");
+
+  const [priorityLevel, setPriorityLevel] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+
+  const [recommendationDate, setRecommendationDate] = useState(new Date());
+  const [dueDate, setDueDate] = useState(new Date());
+
+  const [showRecommendationDatePicker, setShowRecommendationDatePicker] =
+    useState(false);
+  const [showDueDatePicker, setShowDueDatePicker] = useState(false);
+
+  const handleRecommendationDateChange = (event, selectedDate) => {
+    if (selectedDate) {
+      setRecommendationDate(new Date(selectedDate)); // Ensure it's a Date object
+    }
+    setShowRecommendationDatePicker(false);
+  };
+
+  const handleDueDateChange = (event, selectedDate) => {
+    if (selectedDate) {
+      setDueDate(new Date(selectedDate)); // Ensure it's a Date object
+    }
+    setShowDueDatePicker(false);
+  };
 
   const toggleModal = () => {
     setModalVisible(!modalVisible);
   };
 
-  const handleSubmit = () => {
+
+
+  const handleSubmit = async () => {
     const newRecommendation = {
       vehicleName,
       driverID,
@@ -43,47 +72,150 @@ export default function MaintenanceRecommendationForm() {
       dueDate,
       priorityLevel,
     };
-    setRecommendations([...recommendations, newRecommendation]);
-    toggleModal();
-    resetForm();
+  
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Error", "User token is missing.");
+        console.log("No user token found.");
+        return; // Prevent further execution if token is missing
+      }
+  
+      const response = await fetch(`${BASE_URL}add-maintenance-recommendation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newRecommendation),
+      });
+  
+      const data = await response.json();
+      console.log('Response data:', data); // Log response data
+  
+      if (response.ok) {
+
+        fetchMaintenanceRecommendations();
+        Alert.alert("Success", "Maintenance recommendation added successfully!");
+        resetForm();
+      } else {
+        setErrorMessage(data.error || "Error adding maintenance recommendation.");
+        Alert.alert("Error", data.error || "Error adding maintenance recommendation.");
+      }
+    } catch (error) {
+      console.error("Error during submission:", error);
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+    }
   };
+  
+  
 
   const resetForm = () => {
-    setVehicleName('');
-    setDriverID('');
-    setRecommendationType('');
-    setIssues('');
-    setIssueDescription('');
-    setRecommendationDate('');
-    setDueDate('');
-    setPriorityLevel('');
+    setVehicleName("");
+    setDriverID("");
+    setRecommendationType("");
+    setIssues("");
+    setIssueDescription("");
+    setRecommendationDate("");
+    setDueDate("");
+    setPriorityLevel("");
   };
 
   const renderRecommendationCard = ({ item }) => {
     const showAlert = () => {
       Alert.alert(
-        'Maintenance Recommendation Details',
-        `Vehicle Name: ${item.vehicleName}\nDriver ID: ${item.driverID}\nRecommendation Type: ${item.recommendationType}\nIssues: ${item.issues}\nDescription: ${item.issueDescription}\nPriority Level: ${item.priorityLevel}`,
-        [{ text: 'OK' }]
+        "Maintenance Recommendation Details",
+        `Vehicle Name: ${item.VehicleName || "N/A"}\n` +
+          `Driver ID: ${item.user_id || "N/A"}\n` +
+          `Recommendation Type: ${item.RecommendationType || "N/A"}\n` +
+          `Issues: ${
+            item.Issues
+              ? JSON.parse(item.Issues)
+                  .map((issue) => issue.IssueDescription)
+                  .join(", ")
+              : "None"
+          }\n` +
+          `Priority Level: ${item.PriorityLevel || "N/A"}`,
+        [{ text: "OK" }]
       );
     };
 
     return (
       <TouchableOpacity style={styles.card} onPress={showAlert}>
         <View style={styles.cardHeader}>
-          <Ionicons name="car-sport" size={24} color="white" style={styles.icon} />
-          <Text style={styles.cardTitle}>{item.vehicleName}</Text>
+          <Ionicons
+            name="car-sport"
+            size={24}
+            color="white"
+            style={styles.icon}
+          />
+          <Text style={styles.cardTitle}>
+            {item.VehicleName || "Unknown Vehicle"}
+          </Text>
         </View>
-        <Text>Driver ID: {item.driverID}</Text>
-        <Text>Issues: {item.issues}</Text>
-        <Text>Priority: {item.priorityLevel}</Text>
+        <Text style={styles.cardText}>Driver ID: {item.user_id || "N/A"}</Text>
+        <Text style={styles.cardText}>
+          Issues:
+          {item.Issues}
+          
+        </Text>
+        <Text style={styles.cardText}>
+          Priority: {item.PriorityLevel || "N/A"}
+        </Text>
       </TouchableOpacity>
     );
   };
 
+  const fetchMaintenanceRecommendations = async () => {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await axios.get(`${BASE_URL}maintenance-recommendations`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.data) {
+      setRecommendations(response.data);
+    } else {
+      console.error(
+        "Error fetching maintenance recommendations:",
+        response.data
+      );
+    }
+  };
+
+  const fetchDriverData = async () => {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await axios.get(`${BASE_URL}driver`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (response.data) setDrivers(response.data);
+  };
+
+  const fetchVehicleData = async () => {
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await axios.get(`${BASE_URL}vehicles`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (response.data) setVehicles(response.data);
+  };
+
+  useEffect(() => {
+    fetchMaintenanceRecommendations();
+    fetchDriverData();
+    fetchVehicleData();
+  }, []);
+
   // Filter recommendations based on search query
   const filteredRecommendations = recommendations.filter((recommendation) =>
-    recommendation.vehicleName.toLowerCase().includes(searchQuery.toLowerCase())
+    (recommendation.VehicleName?.toLowerCase() || "").includes(
+      searchQuery?.toLowerCase() || ""
+    )
   );
 
   return (
@@ -104,7 +236,11 @@ export default function MaintenanceRecommendationForm() {
         data={filteredRecommendations}
         renderItem={renderRecommendationCard}
         keyExtractor={(item, index) => index.toString()}
-        ListEmptyComponent={<Text style={styles.emptyMessage}>No matching recommendations found</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyMessage}>
+            No matching recommendations found
+          </Text>
+        }
       />
 
       {/* Add Recommendation Button */}
@@ -118,22 +254,38 @@ export default function MaintenanceRecommendationForm() {
         <TouchableWithoutFeedback onPress={toggleModal}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalHeader}>Add Maintenance Recommendation</Text>
+              <Text style={styles.modalHeader}>
+                Add Maintenance Recommendation
+              </Text>
 
-              <TextInput
+              <Picker
+                selectedValue={vehicleName}
                 style={styles.input}
-                placeholder="Vehicle Name"
-                value={vehicleName}
-                onChangeText={setVehicleName}
-              />
-
-              <TextInput
+                onValueChange={(itemValue) => setVehicleName(itemValue)}
+              >
+                <Picker.Item label="Select Vehicle" value="" />
+                {vehicles.map((vehicle) => (
+                  <Picker.Item
+                    key={vehicle.id}
+                    label={vehicle.VehicleName}
+                    value={vehicle.id}
+                  />
+                ))}
+              </Picker>
+              <Picker
+                selectedValue={driverID}
                 style={styles.input}
-                placeholder="Driver ID"
-                value={driverID}
-                onChangeText={setDriverID}
-                keyboardType="numeric"
-              />
+                onValueChange={(itemValue) => setDriverID(itemValue)}
+              >
+                <Picker.Item label="Select Driver" value="" />
+                {drivers.map((driver) => (
+                  <Picker.Item
+                    key={driver.id}
+                    label={driver.name}
+                    value={driver.id}
+                  />
+                ))}
+              </Picker>
 
               <TextInput
                 style={styles.input}
@@ -156,37 +308,70 @@ export default function MaintenanceRecommendationForm() {
                 onChangeText={setIssueDescription}
               />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Recommendation Date"
-                value={recommendationDate}
-                onChangeText={setRecommendationDate}
-              />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Due Date"
-                value={dueDate}
-                onChangeText={setDueDate}
-              />
 
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={() => setShowRecommendationDatePicker(true)}
+              >
+                <Text style={styles.datePickerText}>
+                  Recommendation Date:{" "}
+                  {recommendationDate
+                    ? recommendationDate.toLocaleDateString()
+                    : new Date().toLocaleDateString()}
+
+                    
+                </Text>
+              </TouchableOpacity>
+              {showRecommendationDatePicker && (
+                <DateTimePicker
+                  value={recommendationDate}
+                  mode="date"
+                  display="default"
+                  onChange={handleRecommendationDateChange}
+                />
+              )}
+
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={() => setShowDueDatePicker(true)}
+              >
+                <Text style={styles.datePickerText}>
+                  Due Date:{" "}
+                  {dueDate ? dueDate.toLocaleDateString() : new Date().toLocaleDateString()}
+                </Text>
+              </TouchableOpacity>
+              {showDueDatePicker && (
+                <DateTimePicker
+                  value={dueDate}
+                  mode="date"
+                  display="default"
+                  onChange={handleDueDateChange}
+                />
+              )}
               <Picker
                 selectedValue={priorityLevel}
                 style={styles.input}
                 onValueChange={(itemValue) => setPriorityLevel(itemValue)}
               >
                 <Picker.Item label="Priority Level" value="" />
-                <Picker.Item label="Low" value="Low" />
-                <Picker.Item label="Medium" value="Medium" />
-                <Picker.Item label="High" value="High" />
+                <Picker.Item label="Low Priority" value="Low Priority" />
+                <Picker.Item label="Medium Priority" value="Medium Priority" />
+                <Picker.Item label="High Priority" value="High Priority" />
               </Picker>
 
               {/* Submit and Cancel Buttons */}
               <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                <TouchableOpacity
+                  style={styles.submitButton}
+                  onPress={handleSubmit}
+                >
                   <Text style={styles.buttonText}>Submit</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelButton} onPress={toggleModal}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={toggleModal}
+                >
                   <Text style={styles.buttonText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
@@ -202,59 +387,59 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   header: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    textAlign: 'center',
-    color: '#333',
+    textAlign: "center",
+    color: "#333",
   },
   searchBar: {
     height: 40,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderWidth: 1,
     marginBottom: 10,
     paddingHorizontal: 10,
     borderRadius: 8,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   card: {
-    backgroundColor: '#ADD8E6',
+    backgroundColor: "#ADD8E6",
     padding: 20,
     marginVertical: 10,
     borderRadius: 8,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 5,
   },
   cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 10,
   },
   icon: {
     marginRight: 10,
   },
   cardTitle: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 18,
-    color: 'white',
+    color: "white",
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent overlay
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent overlay
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 20,
     borderRadius: 20,
-    width: '90%',
-    shadowColor: '#000',
+    width: "90%",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -262,60 +447,70 @@ const styles = StyleSheet.create({
   },
   modalHeader: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 20,
-    textAlign: 'center',
-    color: '#333',
+    textAlign: "center",
+    color: "#333",
   },
   input: {
     height: 55,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderWidth: 1,
     marginVertical: 10,
     paddingLeft: 10,
     borderRadius: 8,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   modalButtons: {
     marginTop: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
+    flexDirection: "row",
+    justifyContent: "space-evenly",
   },
   submitButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
     padding: 10,
     borderRadius: 8,
   },
   cancelButton: {
-    backgroundColor: '#FF6347',
+    backgroundColor: "#FF6347",
     padding: 10,
     borderRadius: 8,
   },
   buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    color: "white",
+    fontWeight: "bold",
   },
   addRequestButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
     padding: 15,
     marginTop: 20,
     borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 3,
   },
   addRequestButtonText: {
     fontSize: 18,
-    color: 'white',
+    color: "white",
     marginLeft: 10,
   },
   emptyMessage: {
-    textAlign: 'center',
-    color: '#888',
+    textAlign: "center",
+    color: "#888",
     marginTop: 20,
+  },
+  datePickerButton: {
+    padding: 16,
+    marginVertical: 8,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: "#333",
   },
 });

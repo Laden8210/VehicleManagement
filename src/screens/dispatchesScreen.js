@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -6,57 +7,93 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-} from 'react-native';
-import axios from 'axios';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+} from "react-native";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import { BASE_URL } from "../config";
 
 export default function DispatchesScreen() {
   const [dispatches, setDispatches] = useState([]);
+  const [filteredDispatches, setFilteredDispatches] = useState([]);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [totalDispatches, setTotalDispatches] = useState(0);
 
-  // Fetch dispatches from backend
   const fetchDispatches = async () => {
     setError(null);
 
     try {
-      const response = await axios.get(
-        'https://samplesytems.shop/backend/dispatch.php',
-        { params: { searchQuery } } // Adjust as needed in the PHP backend
-      );
+      const token = await AsyncStorage.getItem("userToken");
+      console.log("Token:", token);
 
-      if (Array.isArray(response.data)) {
-        setDispatches(response.data);
+      const response = await fetch(`${BASE_URL}retrieve-dispatch`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: token ? `Bearer ${token}` : undefined, 
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("Data:", data);
+
+      if (Array.isArray(data)) {
+        setDispatches(data); 
+        setFilteredDispatches(data); 
+        setTotalDispatches(data.length);
       } else {
-        setError('Failed to load dispatches: Invalid data format');
+        setError("Invalid response format");
       }
     } catch (err) {
-      setError('Failed to fetch dispatches');
+      console.error(err.message);
+      setError("Failed to fetch dispatches");
+    }
+  };
+
+  const handleSearch = (text) => {
+    setSearchQuery(text);
+
+    if (text.trim() === "") {
+      setFilteredDispatches(dispatches); // Show all dispatches if the search query is empty
+    } else {
+      const filteredData = dispatches.filter((dispatch) =>
+        dispatch.RequestorName.toLowerCase().includes(text.toLowerCase()) ||
+        dispatch.RequestStatus.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredDispatches(filteredData);
     }
   };
 
   useEffect(() => {
     fetchDispatches();
-  }, []);
-
-  // Function to format the date as "Month Day, Year"
+  }, []); 
   const formatDate = (date) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(date).toLocaleDateString('en-US', options);
+    const options = { year: "numeric", month: "long", day: "numeric" };
+    return new Date(date).toLocaleDateString("en-US", options);
   };
 
   return (
     <View style={styles.container}>
-      
       {/* Stats Section */}
       <View style={styles.statsContainer}>
         <View style={styles.row}>
-          <View style={[styles.statCard, { backgroundColor: '#d4edda' }]}>
-            <Ionicons name="people" size={60} color="#28a745" style={styles.icon} />
-            <Text style={[styles.statTitle, { color: '#28a745' }]}>
+          <View style={[styles.statCard, { backgroundColor: "#d4edda" }]}>
+            <Ionicons
+              name="people"
+              size={60}
+              color="#28a745"
+              style={styles.icon}
+            />
+            <Text style={[styles.statTitle, { color: "#28a745" }]}>
               Total Transported Patients
             </Text>
-            <Text style={[styles.statValue, { color: '#28a745' }]}>4</Text>
+            <Text style={[styles.statValue, { color: "#28a745" }]}>
+              {totalDispatches}
+            </Text>
           </View>
         </View>
       </View>
@@ -67,7 +104,7 @@ export default function DispatchesScreen() {
           style={styles.searchInput}
           placeholder="Search dispatches"
           value={searchQuery}
-          onChangeText={(text) => setSearchQuery(text)}
+          onChangeText={handleSearch} 
         />
         <TouchableOpacity onPress={fetchDispatches}>
           <Ionicons name="search" size={24} color="black" />
@@ -79,12 +116,12 @@ export default function DispatchesScreen() {
 
       {/* Display Dispatches */}
       <ScrollView style={styles.scrollView}>
-        {dispatches.length === 0 ? (
+        {filteredDispatches.length === 0 ? (
           <Text style={styles.noDataText}>No dispatches found</Text>
         ) : (
-          dispatches.map((dispatch) => (
-            <View key={dispatch.ID} style={styles.card}>
-              <Text style={styles.id}>ID: {dispatch.ID}</Text>
+          filteredDispatches.map((dispatch) => (
+            <View key={dispatch.id} style={styles.card}>
+              <Text style={styles.id}>ID: {dispatch.id}</Text>
               <Text>Request Date: {formatDate(dispatch.RequestDate)}</Text>
               <Text>Requestor Name: {dispatch.RequestorName}</Text>
               <Text>Travel Date: {formatDate(dispatch.TravelDate)}</Text>
@@ -101,45 +138,45 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
   },
   statsContainer: {
     marginBottom: 20,
   },
   row: {
-    flexDirection: 'row',
-    justifyContent: 'center', // Ensure center alignment
+    flexDirection: "row",
+    justifyContent: "center", 
     marginBottom: 10,
   },
   statCard: {
-    backgroundColor: '#d4edda', // Light green background
+    backgroundColor: "#d4edda",
     padding: 15,
     borderRadius: 10,
-    width: '90%', // Adjusted to fit the screen better
-    alignItems: 'center',
+    width: "90%", 
+    alignItems: "center",
     elevation: 3,
     paddingVertical: 20,
   },
   icon: {
-    marginBottom: 10, // Space between icon and text
+    marginBottom: 10, 
   },
   statTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginTop: 10,
-    textAlign: 'center',
+    textAlign: "center",
   },
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginTop: 5,
-    textAlign: 'center',
+    textAlign: "center",
   },
   searchContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 10,
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    alignItems: "center",
+    backgroundColor: "#fff",
     padding: 5,
     borderRadius: 5,
     elevation: 2,
@@ -153,7 +190,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 20,
     borderRadius: 10,
     marginBottom: 10,
@@ -161,18 +198,18 @@ const styles = StyleSheet.create({
   },
   id: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 5,
   },
   noDataText: {
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 16,
-    color: '#777',
+    color: "#777",
     marginTop: 20,
   },
   errorText: {
-    color: 'red',
-    textAlign: 'center',
+    color: "red",
+    textAlign: "center",
     marginBottom: 10,
   },
 });
