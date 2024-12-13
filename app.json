@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "VehicleManagement",
-    "slug": "VehicleManagement",
+    "slug": "first-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -27,8 +27,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "0550e1d7-b869-4ec5-aef9-4c2661721952"
+        "projectId": "f432cf2d-8d55-4e6a-be84-5ba2364ed293"
       }
-    }
+    },
+    "owner": "laden8210"
   }
 }
