@@ -12,6 +12,8 @@ const UserScreen = ({ userId, userName, setUserType }) => {
   const [reminders, setReminders] = useState(0);
   const [dispatch, setDispatch] = useState(0);
 
+  const [name, setName] = useState('');
+
   const navigation = useNavigation();
 
 
@@ -36,6 +38,7 @@ const UserScreen = ({ userId, userName, setUserType }) => {
           setMaintenanceRecommendations(data.mainCount);
           setReminders(data.reminderCount);
           setDispatch(data.dispatchCount);
+          setName(data.name);
         } else {
           console.error('Failed to fetch user data');
         }
@@ -90,7 +93,7 @@ const UserScreen = ({ userId, userName, setUserType }) => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Welcome, {userName || 'Guest'}.</Text>
+        <Text style={styles.welcomeText}>Welcome, {userName || name}.</Text>
         
         <TouchableOpacity onPress={handleSignOut}>
        

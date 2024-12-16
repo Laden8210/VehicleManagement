@@ -27,7 +27,7 @@ export default function TripTicketForm() {
   const [searchQuery, setSearchQuery] = useState("");
 
 
-  const [tripTicketNumber, setTripTicketNumber] = useState("");
+
   const [arrivalDate, setArrivalDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [vehicleName, setVehicleName] = useState("");
@@ -41,14 +41,12 @@ export default function TripTicketForm() {
   const [issuedFromOffice, setIssuedFromOffice] = useState("");
   const [departureTimeFromOffice, setDepartureTimeFromOffice] = useState("");
   const [kmAfterTravel, setKmAfterTravel] = useState("");
-  const [distanceTravelled, setDistanceTravelled] = useState("");
+
   const [arrivalAtDestination, setArrivalAtDestination] = useState("");
   const [departureFromDestination, setDepartureFromDestination] = useState("");
   const [arrivalAtOffice, setArrivalAtOffice] = useState("");
   const [addedDuringTrip, setAddedDuringTrip] = useState("");
-  const [totalFuelTank, setTotalFuelTank] = useState("");
-  const [fuelConsumed, setFuelConsumed] = useState("");
-  const [balanceEnd, setBalanceEnd] = useState("");
+
   const [others, setOthers] = useState("");
   const [remarks, setRemarks] = useState("");
   const [vehicles, setVehicles] = useState([]);
@@ -83,14 +81,58 @@ export default function TripTicketForm() {
 
   const handleSubmit = async () => {
     try {
+      if (!arrivalDate || !returnDate) {
+        Alert.alert("Error", "Please provide both arrival and return dates.");
+        return;
+      }
+      if (!selectedVehicle) {
+        Alert.alert("Error", "Please select a vehicle.");
+        return;
+      }
+      if (!origin || !destination) {
+        Alert.alert("Error", "Please provide both origin and destination.");
+        return;
+      }
+      if (!purpose) {
+        Alert.alert("Error", "Please specify the purpose of the trip.");
+        return;
+      }
+  
+      // Validate numeric fields
       const parsedKmBeforeTravel = parseInt(kmBeforeTravel, 10);
-      const parsedBalanceStart = parseFloat(balanceStart); // You may want to use float if this field includes decimals
-      const parsedIssuedFromOffice = parseFloat(issuedFromOffice);
       const parsedKmAfterTravel = parseInt(kmAfterTravel, 10);
-      const parsedTotalFuelTank = parseFloat(totalFuelTank);
-      const parsedFuelConsumption = parseFloat(fuelConsumed);
-      const parsedBalanceEnd = parseFloat(balanceEnd);
-      const parsedAddedDuringTrip = parseFloat(addedDuringTrip); // optional if needed
+      const parsedBalanceStart = parseFloat(balanceStart);
+      const parsedAddedDuringTrip = parseFloat(addedDuringTrip);
+  
+      if (isNaN(parsedKmBeforeTravel) || parsedKmBeforeTravel < 0) {
+        Alert.alert("Error", "Kilometers before travel must be a valid non-negative number.");
+        return;
+      }
+      if (isNaN(parsedKmAfterTravel) || parsedKmAfterTravel < parsedKmBeforeTravel) {
+        Alert.alert(
+          "Error",
+          "Kilometers after travel must be a valid number greater than or equal to kilometers before travel."
+        );
+        return;
+      }
+      if (isNaN(parsedBalanceStart) || parsedBalanceStart < 0) {
+        Alert.alert("Error", "Balance start must be a valid non-negative number.");
+        return;
+      }
+      if (isNaN(parsedAddedDuringTrip) || parsedAddedDuringTrip < 0) {
+        Alert.alert("Error", "Amount added during trip must be a valid non-negative number.");
+        return;
+      }
+  
+      // Validate time fields (optional)
+      if (!departureTimeA || !arrivalTimeA) {
+        Alert.alert("Error", "Please provide departure and arrival times for segment A.");
+        return;
+      }
+      if (departureTimeB && !arrivalTimeB) {
+        Alert.alert("Error", "Please provide both departure and arrival times for segment B.");
+        return;
+      }
 
       
 
@@ -118,9 +160,7 @@ export default function TripTicketForm() {
           TimeArrival_B: arrivalTimeB,
 
           AddedDuringTrip: parsedAddedDuringTrip,
-          TotalFuelTank: parsedTotalFuelTank,
-          FuelConsumption: parsedFuelConsumption,
-          BalanceEnd: parsedBalanceEnd,
+
           Others: others,
           Remarks: remarks,
         }),
@@ -227,7 +267,7 @@ export default function TripTicketForm() {
   };
 
   const resetForm = () => {
-    setTripTicketNumber("");
+
     setArrivalDate("");
     setReturnDate("");
     setVehicleName("");
@@ -241,14 +281,13 @@ export default function TripTicketForm() {
     setIssuedFromOffice("");
     setDepartureTimeFromOffice("");
     setKmAfterTravel("");
-    setDistanceTravelled("");
+
     setArrivalAtDestination("");
     setDepartureFromDestination("");
     setArrivalAtOffice("");
     setAddedDuringTrip("");
-    setTotalFuelTank("");
-    setFuelConsumed("");
-    setBalanceEnd("");
+
+
     setOthers("");
     setRemarks("");
   };
@@ -300,40 +339,40 @@ export default function TripTicketForm() {
           {selectedTrip && (
             <>
               <Text style={styles.detailText}>
-                Trip Ticket Number: {selectedTrip.tripTicketNumber}
+                Trip Ticket Number: {selectedTrip.TripTicketNumber}
               </Text>
               <Text style={styles.detailText}>
-                Arrival Date: {selectedTrip.arrivalDate}
+                Arrival Date: {selectedTrip.ArrivalDate}
               </Text>
               <Text style={styles.detailText}>
-                Return Date: {selectedTrip.returnDate}
+                Return Date: {selectedTrip.ReturnDate}
               </Text>
               <Text style={styles.detailText}>
-                Vehicle Name: {selectedTrip.vehicleName}
+                Vehicle Name: {selectedTrip.VehicleName}
               </Text>
               <Text style={styles.detailText}>
-                Driver ID: {selectedTrip.driverId}
+                Driver ID: {selectedTrip.user_id}
               </Text>
               <Text style={styles.detailText}>
-                Responder Names: {selectedTrip.responderNames}
+                Responder Names: {selectedTrip.name}
               </Text>
               <Text style={styles.detailText}>
-                Origin: {selectedTrip.origin}
+                Origin: {selectedTrip.Origin}
               </Text>
               <Text style={styles.detailText}>
-                Destination: {selectedTrip.destination}
+                Destination: {selectedTrip.Destination}
               </Text>
               <Text style={styles.detailText}>
-                Purpose: {selectedTrip.purpose}
+                Purpose: {selectedTrip.Purpose}
               </Text>
               <Text style={styles.detailText}>
-                Km Before Travel: {selectedTrip.kmBeforeTravel}
+                Km Before Travel: {selectedTrip.KmBeforeTravel}
               </Text>
               <Text style={styles.detailText}>
-                Balance Start: {selectedTrip.balanceStart}
+                Balance Start: {selectedTrip.BalanceStart}
               </Text>
               <Text style={styles.detailText}>
-                Remarks: {selectedTrip.remarks}
+                Remarks: {selectedTrip.Remarks}
               </Text>
               <TouchableOpacity onPress={closeViewModal}>
                 <Text style={styles.closeButton}>Close</Text>
@@ -348,13 +387,7 @@ export default function TripTicketForm() {
         <ScrollView contentContainerStyle={styles.modalContent}>
           <Text style={styles.header}>Add Trip Ticket</Text>
 
-          <Text style={styles.label}>Trip Ticket Number</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Trip Ticket Number"
-            value={tripTicketNumber}
-            onChangeText={setTripTicketNumber}
-          />
+  
 
           <Text style={styles.label}>Vehicle</Text>
           <Picker
@@ -460,13 +493,9 @@ export default function TripTicketForm() {
             value={kmAfterTravel}
             onChangeText={setKmAfterTravel}
           />
-          <Text style={styles.label}>Distance Travelled</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Distance Travelled"
-            value={distanceTravelled}
-            onChangeText={setDistanceTravelled}
-          />
+
+
+
 
           {/* Show DatePicker Modal */}
           <Text style={styles.label}>Departure From Destination</Text>
@@ -499,30 +528,7 @@ export default function TripTicketForm() {
             value={addedDuringTrip}
             onChangeText={setAddedDuringTrip}
           />
-
-          <Text style={styles.label}>Total Fuel Tank</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Total Fuel Tank"
-            value={totalFuelTank}
-            onChangeText={setTotalFuelTank}
-          />
-
-          <Text style={styles.label}>Fuel Consumed</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Fuel Consumed"
-            value={fuelConsumed}
-            onChangeText={setFuelConsumed}
-          />
-
-          <Text style={styles.label}>Balance End</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Balance End"
-            value={balanceEnd}
-            onChangeText={setBalanceEnd}
-          />
+ k
 
           <TouchableOpacity onPress={() => showDatePicker("TimeArrival_A")}
              style={styles.input}>
