@@ -233,8 +233,12 @@ const fetchRepairRequests = async () => {
                 onValueChange={(itemValue) => setReportedIssue(itemValue)}
               >
                 <Picker.Item label="Reported Issue" value="" />
-                <Picker.Item label="Issue 1" value="Issue 1" />
-                <Picker.Item label="Issue 2" value="Issue 2" />
+                <Picker.Item label="Engine" value="Engine" />
+                <Picker.Item label="Transmission" value="Transmission" />
+                <Picker.Item label="Suspension" value="Suspension" />
+                <Picker.Item label="Air Conditioner" value="Air Conditioner" />
+                <Picker.Item label="Exhaust" value="Exhaust" />
+                <Picker.Item label="Windshield" value="Windshield" />
                 {/* Add more issues as needed */}
               </Picker>
 

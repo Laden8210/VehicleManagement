@@ -11,6 +11,7 @@ import {
   ScrollView,
   Image,
   Alert,
+  ActivityIndicator
 } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Picker } from "@react-native-picker/picker";
@@ -25,8 +26,6 @@ export default function TripTicketForm() {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [tripData, setTripData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-
-
 
   const [arrivalDate, setArrivalDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
@@ -61,9 +60,9 @@ export default function TripTicketForm() {
   const [departureTimeB, setDepartureTimeB] = useState("");
 
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  
 
-
-
+  const [latestTicket, setLatestTicket] = useState([]);
 
   const fetchTripData = async () => {
     const token = await AsyncStorage.getItem("userToken");
@@ -74,10 +73,54 @@ export default function TripTicketForm() {
       },
     });
 
-
     setTripData(response.data);
   };
 
+  const [loading, setLoading] = useState(false);
+
+  const fetchLatestTicket = async (vehicleId) => {
+    if (!vehicleId) {
+      setLatestTicket(null);
+      setKmBeforeTravel("");
+      setBalanceStart(""); 
+      return;
+    }
+  
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const response = await axios.get(`${BASE_URL}getLatestTicketByCar`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        params: {
+          vehicles_id: vehicleId,
+        },
+      });
+  
+      const ticket = response.data;
+      setLatestTicket(ticket); 
+      setKmBeforeTravel(ticket.kbt?.toString() || "0"); 
+      setBalanceStart(ticket.totalFuelTank?.toString() || "0");
+    } catch (error) {
+      setKmBeforeTravel("0");
+      setBalanceStart(")"); 
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+
+  const handleVehicleChange = (vehicleId) => {
+    setSelectedVehicle(vehicleId);
+    fetchLatestTicket(vehicleId);
+  };
+
+  // UI:
+  {
+    loading ? <ActivityIndicator size="large" color="#0000ff" /> : null;
+  }
 
   const handleSubmit = async () => {
     try {
@@ -97,18 +140,24 @@ export default function TripTicketForm() {
         Alert.alert("Error", "Please specify the purpose of the trip.");
         return;
       }
-  
+
       // Validate numeric fields
       const parsedKmBeforeTravel = parseInt(kmBeforeTravel, 10);
       const parsedKmAfterTravel = parseInt(kmAfterTravel, 10);
       const parsedBalanceStart = parseFloat(balanceStart);
       const parsedAddedDuringTrip = parseFloat(addedDuringTrip);
-  
+
       if (isNaN(parsedKmBeforeTravel) || parsedKmBeforeTravel < 0) {
-        Alert.alert("Error", "Kilometers before travel must be a valid non-negative number.");
+        Alert.alert(
+          "Error",
+          "Kilometers before travel must be a valid non-negative number."
+        );
         return;
       }
-      if (isNaN(parsedKmAfterTravel) || parsedKmAfterTravel < parsedKmBeforeTravel) {
+      if (
+        isNaN(parsedKmAfterTravel) ||
+        parsedKmAfterTravel < parsedKmBeforeTravel
+      ) {
         Alert.alert(
           "Error",
           "Kilometers after travel must be a valid number greater than or equal to kilometers before travel."
@@ -116,25 +165,35 @@ export default function TripTicketForm() {
         return;
       }
       if (isNaN(parsedBalanceStart) || parsedBalanceStart < 0) {
-        Alert.alert("Error", "Balance start must be a valid non-negative number.");
+        Alert.alert(
+          "Error",
+          "Balance start must be a valid non-negative number."
+        );
         return;
       }
       if (isNaN(parsedAddedDuringTrip) || parsedAddedDuringTrip < 0) {
-        Alert.alert("Error", "Amount added during trip must be a valid non-negative number.");
-        return;
-      }
-  
-      // Validate time fields (optional)
-      if (!departureTimeA || !arrivalTimeA) {
-        Alert.alert("Error", "Please provide departure and arrival times for segment A.");
-        return;
-      }
-      if (departureTimeB && !arrivalTimeB) {
-        Alert.alert("Error", "Please provide both departure and arrival times for segment B.");
+        Alert.alert(
+          "Error",
+          "Amount added during trip must be a valid non-negative number."
+        );
         return;
       }
 
-      
+      // Validate time fields (optional)
+      if (!departureTimeA || !arrivalTimeA) {
+        Alert.alert(
+          "Error",
+          "Please provide departure and arrival times for segment A."
+        );
+        return;
+      }
+      if (departureTimeB && !arrivalTimeB) {
+        Alert.alert(
+          "Error",
+          "Please provide both departure and arrival times for segment B."
+        );
+        return;
+      }
 
       const response = await fetch(`${BASE_URL}add-trip-ticket`, {
         method: "POST",
@@ -170,7 +229,7 @@ export default function TripTicketForm() {
       if (response.ok) {
         Alert.alert("Trip Ticket Added Successfully");
 
-        setAddModalVisible(false); 
+        setAddModalVisible(false);
         resetForm();
         console.log(result);
       } else {
@@ -180,9 +239,7 @@ export default function TripTicketForm() {
     } catch (error) {
       console.error("Error during submit:", error);
     }
-
   };
-
 
   useEffect(() => {
     const fetchVehicles = async () => {
@@ -200,7 +257,6 @@ export default function TripTicketForm() {
           console.error("No token found in AsyncStorage.");
         }
       } catch (error) {
-
         console.error("Error fetching vehicles:", error);
       }
     };
@@ -213,14 +269,16 @@ export default function TripTicketForm() {
   };
 
   const filteredData = tripData.filter((item) => {
+    const query = searchQuery.toLowerCase();
+  
     return (
-      item.TripTicketNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.VehicleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.Origin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.Destination.toLowerCase().includes(searchQuery.toLowerCase())
+      (item.TripTicketNumber?.toLowerCase().includes(query) || false) ||
+      (item.VehicleName?.toLowerCase().includes(query) || false) ||
+      (item.Origin?.toLowerCase().includes(query) || false) ||
+      (item.Destination?.toLowerCase().includes(query) || false)
     );
   });
-
+  
   const handleCardClick = (item) => {
     setSelectedTrip(item);
     setViewModalVisible(true); // Open view modal with full details when a card is clicked
@@ -267,7 +325,6 @@ export default function TripTicketForm() {
   };
 
   const resetForm = () => {
-
     setArrivalDate("");
     setReturnDate("");
     setVehicleName("");
@@ -286,7 +343,6 @@ export default function TripTicketForm() {
     setDepartureFromDestination("");
     setArrivalAtOffice("");
     setAddedDuringTrip("");
-
 
     setOthers("");
     setRemarks("");
@@ -386,13 +442,10 @@ export default function TripTicketForm() {
       <Modal visible={addModalVisible} animationType="slide">
         <ScrollView contentContainerStyle={styles.modalContent}>
           <Text style={styles.header}>Add Trip Ticket</Text>
-
-  
-
           <Text style={styles.label}>Vehicle</Text>
           <Picker
             selectedValue={selectedVehicle}
-            onValueChange={(itemValue) => setSelectedVehicle(itemValue)}
+            onValueChange={(itemValue) => handleVehicleChange(itemValue)}
           >
             <Picker.Item label="Select Vehicle" value="" />
             {vehicles.map((vehicle) => (
@@ -403,19 +456,15 @@ export default function TripTicketForm() {
               />
             ))}
           </Picker>
-
           {/* Arrival Date Picker */}
-
           <TouchableOpacity onPress={() => showDatePicker("arrivalDate")}>
             <Text style={styles.input}>{arrivalDate || "Arrival Date"}</Text>
           </TouchableOpacity>
-
           {/* Return Date Picker */}
           <Text style={styles.label}>Return Date</Text>
           <TouchableOpacity onPress={() => showDatePicker("returnDate")}>
             <Text style={styles.input}>{returnDate || "Return Date"}</Text>
           </TouchableOpacity>
-
           {/* Arrival At Destination Picker */}
           <Text style={styles.label}>Arrival At Destination</Text>
           <TouchableOpacity
@@ -425,7 +474,6 @@ export default function TripTicketForm() {
               {arrivalAtDestination || "Arrival At Destination"}
             </Text>
           </TouchableOpacity>
-
           {/* Departure Time From Office Picker */}
           <Text style={styles.label}>Departure Time From Office</Text>
           <TouchableOpacity
@@ -435,7 +483,6 @@ export default function TripTicketForm() {
               {departureTimeFromOffice || "Departure Time From Office"}
             </Text>
           </TouchableOpacity>
-
           {/* Other fields as normal TextInput */}
           <Text style={styles.label}>Responder Names</Text>
           <TextInput
@@ -493,10 +540,6 @@ export default function TripTicketForm() {
             value={kmAfterTravel}
             onChangeText={setKmAfterTravel}
           />
-
-
-
-
           {/* Show DatePicker Modal */}
           <Text style={styles.label}>Departure From Destination</Text>
           <DateTimePickerModal
@@ -505,14 +548,12 @@ export default function TripTicketForm() {
             onConfirm={handleConfirm}
             onCancel={() => setDatePickerVisibility(false)}
           />
-
           <TextInput
             style={styles.input}
             placeholder="Departure From Destination"
             value={departureFromDestination}
             onChangeText={setDepartureFromDestination}
           />
-
           <Text style={styles.label}>Arrival At Office</Text>
           <TextInput
             style={styles.input}
@@ -520,7 +561,6 @@ export default function TripTicketForm() {
             value={arrivalAtOffice}
             onChangeText={setArrivalAtOffice}
           />
-
           <Text style={styles.label}>Added During Trip</Text>
           <TextInput
             style={styles.input}
@@ -528,28 +568,31 @@ export default function TripTicketForm() {
             value={addedDuringTrip}
             onChangeText={setAddedDuringTrip}
           />
- k
-
-          <TouchableOpacity onPress={() => showDatePicker("TimeArrival_A")}
-             style={styles.input}>
+          k
+          <TouchableOpacity
+            onPress={() => showDatePicker("TimeArrival_A")}
+            style={styles.input}
+          >
             <Text>{arrivalTimeA || "Select Arrival Time A"}</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => showDatePicker("TimeArrival_B")}
-             style={styles.input}>
+          <TouchableOpacity
+            onPress={() => showDatePicker("TimeArrival_B")}
+            style={styles.input}
+          >
             <Text>{arrivalTimeB || "Select Arrival Time B"}</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => showDatePicker("TimeDeparture_A")}
-             style={styles.input}>
+          <TouchableOpacity
+            onPress={() => showDatePicker("TimeDeparture_A")}
+            style={styles.input}
+          >
             <Text>{departureTimeA || "Select Departure Time A"}</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => showDatePicker("TimeDeparture_B")}
-             style={styles.input}>
+          <TouchableOpacity
+            onPress={() => showDatePicker("TimeDeparture_B")}
+            style={styles.input}
+          >
             <Text>{departureTimeB || "Select Departure Time B"}</Text>
           </TouchableOpacity>
-
           <Text style={styles.label}>Others</Text>
           <TextInput
             style={styles.input}
@@ -557,7 +600,6 @@ export default function TripTicketForm() {
             value={others}
             onChangeText={setOthers}
           />
-
           <Text style={styles.label}>Remarks</Text>
           <TextInput
             style={styles.input}
@@ -565,11 +607,9 @@ export default function TripTicketForm() {
             value={remarks}
             onChangeText={setRemarks}
           />
-
           <TouchableOpacity onPress={handleSubmit}>
             <Text style={styles.submitButton}>Submit</Text>
           </TouchableOpacity>
-
           <TouchableOpacity onPress={closeAddModal}>
             <Text style={styles.closeButton}>Close</Text>
           </TouchableOpacity>
