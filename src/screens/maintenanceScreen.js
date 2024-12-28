@@ -60,11 +60,56 @@ export default function MaintenanceRecommendationForm() {
   };
 
 
+  
 
   const handleSubmit = async () => {
+    // Validate required fields
+    if (!vehicleName) {
+      Alert.alert("Error", "Please select a vehicle");
+      return;
+    }
+
+    if (!recommendationType) {
+      Alert.alert("Error", "Please select a recommendation type");
+      return;
+    }
+
+    if (!issues) {
+      Alert.alert("Error", "Please specify the issues");
+      return;
+    }
+
+    if (!issueDescription) {
+      Alert.alert("Error", "Please provide an issue description");
+      return;
+    }
+
+    if (!priorityLevel) {
+      Alert.alert("Error", "Please select a priority level");
+      return;
+    }
+
+    // Validate dates
+    if (!recommendationDate) {
+      Alert.alert("Error", "Please select a recommendation date");
+      return;
+    }
+
+    if (!dueDate) {
+      Alert.alert("Error", "Please select a due date");
+      return;
+    }
+
+    // Validate due date is after recommendation date
+    if (dueDate < recommendationDate) {
+      Alert.alert("Error", "Due date must be after recommendation date");
+      return;
+    }
+
+    
     const newRecommendation = {
       vehicleName,
-      driverID,
+
       recommendationType,
       issues,
       issueDescription,
@@ -185,15 +230,6 @@ export default function MaintenanceRecommendationForm() {
     }
   };
 
-  const fetchDriverData = async () => {
-    const token = await AsyncStorage.getItem("userToken");
-    const response = await axios.get(`${BASE_URL}driver`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.data) setDrivers(response.data);
-  };
 
   const fetchVehicleData = async () => {
     const token = await AsyncStorage.getItem("userToken");
@@ -207,7 +243,7 @@ export default function MaintenanceRecommendationForm() {
 
   useEffect(() => {
     fetchMaintenanceRecommendations();
-    fetchDriverData();
+
     fetchVehicleData();
   }, []);
 
@@ -272,20 +308,7 @@ export default function MaintenanceRecommendationForm() {
                   />
                 ))}
               </Picker>
-              <Picker
-                selectedValue={driverID}
-                style={styles.input}
-                onValueChange={(itemValue) => setDriverID(itemValue)}
-              >
-                <Picker.Item label="Select Driver" value="" />
-                {drivers.map((driver) => (
-                  <Picker.Item
-                    key={driver.id}
-                    label={driver.name}
-                    value={driver.id}
-                  />
-                ))}
-              </Picker>
+
 
               <TextInput
                 style={styles.input}

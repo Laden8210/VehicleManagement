@@ -63,6 +63,10 @@ export default function TripTicketForm() {
   
 
   const [latestTicket, setLatestTicket] = useState([]);
+  const [responders, setResponder] = useState([]);
+  const [selectedResponder, setSelectResponder] = useState("");
+
+
 
   const fetchTripData = async () => {
     const token = await AsyncStorage.getItem("userToken");
@@ -75,6 +79,18 @@ export default function TripTicketForm() {
 
     setTripData(response.data);
   };
+
+  const fetchRespondent = async () =>{
+    const token = await AsyncStorage.getItem("userToken");
+    const response = await axios.get(`${BASE_URL}getPersonnel`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+
+    setResponder(response.data);
+  }
 
   const [loading, setLoading] = useState(false);
 
@@ -117,6 +133,9 @@ export default function TripTicketForm() {
     fetchLatestTicket(vehicleId);
   };
 
+  const handleResponderChange = (responderID) => {
+    setSelectResponder(responderID);
+  }
   // UI:
   {
     loading ? <ActivityIndicator size="large" color="#0000ff" /> : null;
@@ -140,6 +159,12 @@ export default function TripTicketForm() {
         Alert.alert("Error", "Please specify the purpose of the trip.");
         return;
       }
+
+      if(!selectedResponder){
+        Alert.alert("Error", "Please Select the respondent.")
+        return;
+      }
+
 
       // Validate numeric fields
       const parsedKmBeforeTravel = parseInt(kmBeforeTravel, 10);
@@ -195,6 +220,7 @@ export default function TripTicketForm() {
         return;
       }
 
+
       const response = await fetch(`${BASE_URL}add-trip-ticket`, {
         method: "POST",
         headers: {
@@ -217,7 +243,7 @@ export default function TripTicketForm() {
           TimeArrival_A: arrivalTimeA,
           TimeDeparture_B: departureTimeB,
           TimeArrival_B: arrivalTimeB,
-
+          responder_id: selectedResponder,
           AddedDuringTrip: parsedAddedDuringTrip,
 
           Others: others,
@@ -262,7 +288,8 @@ export default function TripTicketForm() {
     };
     fetchTripData();
     fetchVehicles();
-  }, []);
+    fetchRespondent();
+  }, []); 
 
   const handleSearch = (query) => {
     setSearchQuery(query);
@@ -410,7 +437,7 @@ export default function TripTicketForm() {
                 Driver ID: {selectedTrip.user_id}
               </Text>
               <Text style={styles.detailText}>
-                Responder Names: {selectedTrip.name}
+                Responder Names: {selectedTrip.responder_name}
               </Text>
               <Text style={styles.detailText}>
                 Origin: {selectedTrip.Origin}
@@ -442,20 +469,24 @@ export default function TripTicketForm() {
       <Modal visible={addModalVisible} animationType="slide">
         <ScrollView contentContainerStyle={styles.modalContent}>
           <Text style={styles.header}>Add Trip Ticket</Text>
+          {/* Vehicle Picker */}
           <Text style={styles.label}>Vehicle</Text>
-          <Picker
-            selectedValue={selectedVehicle}
-            onValueChange={(itemValue) => handleVehicleChange(itemValue)}
-          >
-            <Picker.Item label="Select Vehicle" value="" />
-            {vehicles.map((vehicle) => (
-              <Picker.Item
-                key={vehicle.id}
-                label={vehicle.VehicleName}
-                value={vehicle.id}
-              />
-            ))}
-          </Picker>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={selectedVehicle}
+              onValueChange={(itemValue) => handleVehicleChange(itemValue)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Select Vehicle" value="" />
+              {vehicles.map((vehicle) => (
+                <Picker.Item
+                  key={vehicle.id}
+                  label={vehicle.VehicleName}
+                  value={vehicle.id}
+                />
+              ))}
+            </Picker>
+          </View>
           {/* Arrival Date Picker */}
           <TouchableOpacity onPress={() => showDatePicker("arrivalDate")}>
             <Text style={styles.input}>{arrivalDate || "Arrival Date"}</Text>
@@ -485,12 +516,22 @@ export default function TripTicketForm() {
           </TouchableOpacity>
           {/* Other fields as normal TextInput */}
           <Text style={styles.label}>Responder Names</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Responder Names"
-            value={responderNames}
-            onChangeText={setResponderNames}
-          />
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={selectedResponder}
+              onValueChange={(itemValue) => handleResponderChange(itemValue)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Select Responder" value="" />
+              {responders.map((responder) => (
+                <Picker.Item
+                  key={responder.id}
+                  label={responder.Name}
+                  value={responder.id}
+                />
+              ))}
+            </Picker>
+          </View>
           <Text style={styles.label}>Origin</Text>
           <TextInput
             style={styles.input}
@@ -568,7 +609,7 @@ export default function TripTicketForm() {
             value={addedDuringTrip}
             onChangeText={setAddedDuringTrip}
           />
-          k
+          
           <TouchableOpacity
             onPress={() => showDatePicker("TimeArrival_A")}
             style={styles.input}
@@ -741,5 +782,42 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginLeft: 8,
     fontSize: 16,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    marginBottom: 15,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
+  
+  picker: {
+    height: 50,
+    width: '100%',
+    color: '#333',
+    paddingHorizontal: 10,
+  },
+
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+    marginTop: 5,
+  },
+  
+  // Optional: Style for the picker items (Android only)
+  pickerItem: {
+    fontSize: 16,
+    height: 50,
+    color: '#333',
   },
 });
